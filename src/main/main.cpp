@@ -108,7 +108,7 @@ void power_off() {
       TS_Point t = ts.getPoint();
       // Serial.printf("x is %d, y is %d, touched is %d\n", t.x, t.y, touched);
       if (t.x !=0 && t.y != 0) {
-          if (ctr == 100) {
+          if (ctr == 60) {
             digitalWrite(LCD_BL_EN, HIGH);
             displayFSMessage("Hi!!");
             ESP.restart();
@@ -123,7 +123,7 @@ void power_off() {
         touched = 0;
       }
     } 
-    esp_sleep_enable_timer_wakeup(3 * 1000000);
+    esp_sleep_enable_timer_wakeup(2 * 1000000);
     esp_light_sleep_start();
     ctr = 0;
     touched = digitalRead(LCD_CTP_IRQ) ? false : true; 
@@ -259,8 +259,12 @@ uint32_t display_alti_1() {
 
   float pressure;
   sensor.GetPressure(&pressure);
+  uint32_t rec_time = micros();
   float alti1 = pressure_to_altitude(pressure) - alti_1_offs;
-  // alti1 = simulate_flight_alti();
+  alti1 = simulate_flight_alti() + alti1;
+  // Serial.printf("alti1 was %f, now is %f\n", alti1, alti1 + simulate_flight_alti());
+
+  float alti1_unrounded = alti1;
   tft.fillRect(0, 41, 320, 78, TFT_WHITE);
 
   // alti1 = millis()/10;
@@ -280,6 +284,11 @@ uint32_t display_alti_1() {
   }
 
   tft.drawString(altiString.substring(0, 6), 160, 50, 4);
+
+  if (process_gross_singlerec(alti1_unrounded, rec_time)) {
+    // Serial.printf("recording , alti is  %f\n", alti1_unrounded);
+    tft.fillCircle(300, 60, 5, TFT_RED);
+  }
 
   return 50 * 1000;
 }

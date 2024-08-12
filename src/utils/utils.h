@@ -1,3 +1,3 @@
 #include <Arduino.h>
 
-uint32_t simulate_flight_alti();
+float simulate_flight_alti();
