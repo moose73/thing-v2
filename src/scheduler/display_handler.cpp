@@ -10,6 +10,7 @@ void setup_power_off_touch (bool shift=false, bool trig=false);
 uint32_t handle_touch();
 void check_power_off_touch(int x, int y);
 void start_poweroff_sequence();
+int draw_yana_image(int flash_start, int upsample = 1);
 
 void draw_bitmap(char* bmp, int x, int y, int w, int h, uint16_t color) {
   for (int i = 0; i < w; i++) {
@@ -46,17 +47,19 @@ uint32_t handle_touch(void) {
   return 50 * 1000;
 }
 
-void displayFSMessage(String str) {
-  tft.fillScreen(TFT_BLUE);
-  tft.setCursor(30, 120);
+void displayFSMessage(String str, bool background=true, int delay_time=2000) {
+  if (background) {
+    tft.fillScreen(TFT_BLUE);
+  }
+  // tft.fillScreen(TFT_BLUE);
+  tft.setTextSize(4);
+  tft.setCursor(150, 20);
   tft.setTextColor(TFT_RED);
-  tft.setTextSize(10);
   tft.printf("%s", str); 
-  delay(2000);
+  delay(delay_time);
   tft.fillScreen(TFT_WHITE);
   tft.setTextColor(TFT_BLACK);
 }
-
 void setup_power_off_touch (bool shift, bool trig) {
   int ofs = 0;
   if (shift) {
@@ -64,7 +67,7 @@ void setup_power_off_touch (bool shift, bool trig) {
   }
   tft.fillRect(0, 200, 80, 40, TFT_WHITE);
   if (!trig) {
-    tft.fillRect(ofs, 200, 40, 40, TFT_LIGHTGREY);
+    tft.fillRect(ofs, 200, 40, 40, TFT_LIGHTBLUE);
   } else {
     tft.fillRect(ofs, 200, 40, 40, TFT_PINK); 
   }
@@ -94,7 +97,14 @@ void check_power_off_touch(int x, int y) {
     Serial.println("Powering off");
     power_off_seq_state = 0;
     setup_power_off_touch(false);
-    displayFSMessage("bye :(");
+
+    #ifdef YANA
+    Serial.printf("starting yana image draw\n");
+    draw_yana_image(300 * 32000, 2);
+    displayFSMessage("bye :(", false, 5000);
+    #endif
+    // displayFSMessage("bye :(");
+
     start_poweroff_sequence();
     return;
   }
@@ -209,7 +219,9 @@ uint32_t update_altimeter_display() {
     draw_bitmap((char*)freefall_bmp, 290, 85, 30, 30, TFT_BLUE);
   } else if (current_state == CANOPY) {
     draw_bitmap((char*)canopy_bmp, 290, 85, 30, 30, TFT_BLUE);
-  } 
+  }  else {
+    Serial.printf("displaying nothing ???\n");
+  }
 
   tft.fillRect(0, 121, 160, 79, TFT_WHITE);
   tft.setCursor(10, 130);
@@ -250,7 +262,12 @@ uint32_t sleep_loop() {
     ctr += 1;
     if (ctr > 30) {
       digitalWrite(LCD_BL_EN, HIGH);
-      displayFSMessage("HI!!");
+      #ifdef YANA
+      draw_yana_image(400 * 32000);
+      displayFSMessage("Hi!!", false, 5000);
+      #else
+      displayFSMessage("Hi!!");
+      #endif
       ESP.restart();
     }
     return 100 * 1000;
@@ -270,4 +287,29 @@ uint32_t update_wifi_rssi_bars() {
   // Serial.printf("RSSI is %d\n", rssi);
 
   return 3 * 1e6;
+}
+
+void draw_vline_bitmap(uint16_t* bmp, int w, int y, int upsample) {
+  for (int y_d = y; y_d < y + upsample; y_d++) {
+    for (int i = 0; i < w; i++) {
+      for (int x_d = i * upsample; x_d < (i + 1) * upsample; x_d++) {
+        tft.drawPixel(x_d, y_d, bmp[i]);
+      }
+    }
+  }
+}
+
+int draw_yana_image(int flash_start, int upsample) {
+  uint16_t buf[int(320 / upsample)];
+
+  for (int y = 0; y < 240; y+=upsample) {
+    flash_read_bytes(flash_start, (uint8_t*)buf, int((2 * 320) / upsample));
+    draw_vline_bitmap(buf, int(320 / upsample), y, upsample);
+    flash_start += ((2*320) / upsample);
+
+  }
+  return flash_start;
+
+  
+
 }

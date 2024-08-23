@@ -8,6 +8,8 @@
 #include "flash.h"
 #include "wifi.h"
 
+
+
 void setup() {
 
     // delay(1000);
@@ -50,6 +52,31 @@ void setup() {
 
     while (1);
     #endif
+
+    #ifdef LOAD_YANA_MEDIA
+    int byte_ctr = 0;
+    digitalWrite(LCD_BL_EN, HIGH);
+    erase_video_space();
+    digitalWrite(LCD_BL_EN, LOW);
+    while (!Serial);
+    while (Serial.available()) {
+        Serial.read();
+    }
+     while (true) {
+        
+        //read two bytes from serial and write to flash
+        if (Serial.available() >= 2) {
+            uint16_t data = Serial.read();
+            data = (data << 8) | Serial.read();
+            write_video_data(data);
+            byte_ctr += 1;
+            if (byte_ctr % 1000 == 0) {
+                Serial.printf("Wrote %d x2 bytes\n", byte_ctr);
+            }
+        }
+    }
+    #endif
+
 
     begin_idle_state();
     

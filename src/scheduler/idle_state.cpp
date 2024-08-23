@@ -61,6 +61,7 @@ uint32_t update_state_idle() {
     } else if (
       (millis() - first_time_vertical_speed_close_to_zero_low) > 5000) {
       current_state = GROUND;
+      flight_max_alti = 0;
     } else if (millis() - first_time_vertical_speed_close_to_zero_low > 10000) {
       first_time_vertical_speed_close_to_zero_low = 0;
     }

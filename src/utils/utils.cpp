@@ -11,8 +11,8 @@ float simulate_flight_alti() {
   float ascent_time = 30e3;
   float peak_alti = 5000;
   float descent_time = 20e3;
-  float deploy_alti = 1000;
-  float canopy_time = 50e3;
+  float deploy_alti = 200;
+  float canopy_time = 10e3;
 
 //   if (millis() > 31000 && millis() < delay_time) {
 //     return random(0, 5) + 30;

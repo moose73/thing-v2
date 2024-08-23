@@ -2,10 +2,12 @@
 
 SPIFlash flash(SPI_FLASHCS_PIN, 0);
 
+
+
 /*
 Flash structure:
 - 32K pages
-- first page is the map. Total of 500 pages (16MByte flash). Max of 256 flights.
+- first page is the map. Total of 500 pages (16MByte flash). Max of 256 flights. Only use first 300 pages: other 200 for other stuff.
     - 4 bytes per page. First byte (divis-by-2) is empty / used (0xFF / 0x00).  bytes 2-4 is flight number
 - Recording is simple: 2-byte uint16_t altitudes. Easy peasy.
     
@@ -13,11 +15,12 @@ Flash structure:
 void find_next_avlbl_sector();
 uint16_t next_avlbl_sector = 0;
 uint16_t next_avlbl_flight_num = 0;
-
-uint16_t recording_buffer[500];
+#define REC_BUFFER_SIZE 500
+uint16_t recording_buffer[REC_BUFFER_SIZE];
 uint16_t recording_buffer_ptr = 0;
 bool recording_to_flash = false;
 bool sector_transition = false;
+#define FLIGHT_MAX_PAGES 300
 
 void init_flash(SPIClass *spi) {
     Serial.printf("Initializing flash\n");
@@ -37,7 +40,7 @@ void init_flash(SPIClass *spi) {
     find_next_avlbl_sector();
 
     //clear recording buffer
-    for (int i = 0; i < 300; i++) {
+    for (int i = 0; i < REC_BUFFER_SIZE; i++) {
         recording_buffer[i] = 0;
     }
 
@@ -46,7 +49,7 @@ void init_flash(SPIClass *spi) {
 
 void find_next_avlbl_sector() {
     uint8_t buf[4];
-    for (int i = 0; i < 500; i++) {
+    for (int i = 0; i < FLIGHT_MAX_PAGES; i++) {
         flash.readBytes(i * 4, buf, 4);
         if (buf[0] == 0xFF) {
             next_avlbl_sector = i;
@@ -60,7 +63,7 @@ void find_next_avlbl_sector() {
         }
     }
     Serial.printf("No available flights\n");
-    next_avlbl_sector = 500;
+    next_avlbl_sector = FLIGHT_MAX_PAGES;
 }
 
 uint32_t write_ptr = 0;
@@ -106,7 +109,7 @@ void print_flight_to_smon(int flight_num) {
     uint8_t buf[4];
     uint8_t start_page = 1;
     //search thru the page map (at the beginning) for the right flight
-    for (int i = 0; i < 500; i++) {
+    for (int i = 0; i < FLIGHT_MAX_PAGES; i++) {
         flash.readBytes(i * 4, buf, 4);
         if (buf[0] == 0x00 && buf[2] == (flight_num & 0xFF00) >> 8 && buf[3] == (flight_num & 0xFF)) {
             start_page = i;
@@ -114,7 +117,7 @@ void print_flight_to_smon(int flight_num) {
         }
     }
     uint8_t stop_page = start_page;
-    for (int i = start_page; i < 500; i++) {
+    for (int i = start_page; i < FLIGHT_MAX_PAGES; i++) {
         flash.readBytes(i * 4, buf, 4);
         flash.readBytes(i * 4, buf, 4);
         if (buf[0] == 0x00 && buf[2] == (flight_num & 0xFF00) >> 8 && buf[3] == (flight_num & 0xFF)) {
@@ -152,7 +155,7 @@ void flash_process_altitude(float alti) {
             // stop recording, clear buffer
             active_page_num = 0;
             write_ptr = 0;
-            for (int i = 0; i < 500; i++) {
+            for (int i = 0; i < REC_BUFFER_SIZE; i++) {
                 recording_buffer[i] = 0;
             }
             // next_avlbl_flight_num += 1;
@@ -161,18 +164,39 @@ void flash_process_altitude(float alti) {
             return;
         } 
         recording_buffer[recording_buffer_ptr] = (uint16_t)(int(alti));
-        recording_buffer_ptr = (recording_buffer_ptr + 1) % 500;
+        recording_buffer_ptr = (recording_buffer_ptr + 1) % REC_BUFFER_SIZE;
     } else {
         if (!recording_to_flash) {
             recording_to_flash = true;
             // start recording
             Serial.printf("started recording\n");
             //copy circular  buffer to flash
-            uint32_t len = 500 - recording_buffer_ptr;
+            uint32_t len = REC_BUFFER_SIZE - recording_buffer_ptr;
             write_flight_data((uint8_t *)recording_buffer + (recording_buffer_ptr * 2), len * 2);
             write_flight_data((uint8_t *)recording_buffer, recording_buffer_ptr * 2);
         }
         uint16_t alt = int(alti) & 0xFFFF;
         write_flight_data((uint8_t*) &alt, 2);
     }
+}
+
+
+
+void erase_video_space() {
+    // erase pages 300 to 500
+    for (int i = START_MEDIA; i < min(START_MEDIA+100, 500); i++) {
+        flash.blockErase32K(i * 32000);
+    }
+}
+
+uint32_t flash_addr = START_MEDIA * 32000;
+void write_video_data(uint16_t data) {
+    // write to page 300 onwards
+    flash.writeBytes(flash_addr, (uint8_t *)&data, 2);
+    while (flash.busy());
+    flash_addr += 2;
+}
+
+void flash_read_bytes(uint32_t addr, uint8_t *buf, uint32_t len) {
+    flash.readBytes(addr, buf, len);
 }
