@@ -22,7 +22,7 @@ bool process_gross_singlerec(float alti, float time) {
 
     if (!rec_start) {
         rec_start = true;
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 0; i++) {
             Serial.printf("Erasing block %d\n", i);
             flash.blockErase64K(i);
         }

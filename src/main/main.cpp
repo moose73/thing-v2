@@ -8,6 +8,7 @@
 #include <Filters.h>
 #include "utils/utils.h"
 #include "flash_record/flash_record.h"
+#include <Wire.h>
 
 uint32_t update_battery_display_wrapper(void);
 uint32_t handle_touch(void);
@@ -261,8 +262,8 @@ uint32_t display_alti_1() {
   sensor.GetPressure(&pressure);
   uint32_t rec_time = micros();
   float alti1 = pressure_to_altitude(pressure) - alti_1_offs;
+  Serial.printf("alti1 was %f, pressure is %f, now is %f\n", alti1, pressure, alti1 + simulate_flight_alti());
   alti1 = simulate_flight_alti() + alti1;
-  // Serial.printf("alti1 was %f, now is %f\n", alti1, alti1 + simulate_flight_alti());
 
   float alti1_unrounded = alti1;
   tft.fillRect(0, 41, 320, 78, TFT_WHITE);
@@ -330,6 +331,7 @@ void setup(void) {
   tft.fillScreen(TFT_WHITE);
   tft.setRotation(1);
 
+  Wire.begin(1, 2);
   ts.begin(20, 1, 2);
   pinMode(LCD_CTP_IRQ, INPUT);
 
