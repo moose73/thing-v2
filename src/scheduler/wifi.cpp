@@ -15,8 +15,8 @@ WiFi_AP wifi_aps[NUM_APS] = {
         .password = "password"
     },
     {
-        .ssid = "Nacho iPhone2",
-        .password = "password"
+        .ssid = "Skydance",
+        .password = "5giAnts4"
     }
 };
 
@@ -45,7 +45,7 @@ void init_wifi() {
     esp_wifi_set_mode(WIFI_MODE_STA);
 
     esp_wifi_start();
-    esp_wifi_set_inactive_time(WIFI_IF_STA, 6);
+    // esp_wifi_set_inactive_time(WIFI_IF_STA, 6);
     esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
 
 
@@ -86,27 +86,7 @@ bool check_for_known_ssid() {
 
 
 
-void http_post() {
-    char local_response_buffer[2048] = {0};
 
-    const char *post_data = "{\"field1\":\"value1\"}";
-    esp_http_client_config_t config = {
-        .host = "httpbin.org",
-        .path = "/get",
-        .query = "esp",
-        .user_data = local_response_buffer,        // Pass address of local buffer to get response
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-    esp_http_client_set_url(client, "http://httpbin.org/post");
-    esp_http_client_set_method(client, HTTP_METHOD_POST);
-    esp_http_client_set_header(client, "Content-Type", "application/json");
-    esp_http_client_set_post_field(client, post_data, strlen(post_data));
-    esp_http_client_perform(client);
-    //print response
-    Serial.printf("status code: %d\n", esp_http_client_get_status_code(client));
-
-    esp_http_client_cleanup(client);
-}
 
 
 uint32_t reconnect_wifi() {
@@ -141,7 +121,8 @@ uint32_t reconnect_wifi() {
     } else {
 
         wifi_state = CONNECTED;
-
+        
+        set_time();
         // esp_netif_ip_info_t ip;
         // tcpip_adapter_if_t if_t;
         // esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
@@ -177,4 +158,29 @@ uint8_t get_rssi_bars() {
     //     Serial.printf("RSSI is %d\n");
     // }
     return 0;
+}
+
+esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
+    return ESP_OK;
+}
+
+void set_time() {
+    esp_wifi_set_max_tx_power(10);
+    // CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS
+    char local_response_buffer[2049] = {0};
+    esp_http_client_config_t config = {
+        .host = "httpbin.org",
+        .path = "/get",
+        .query = "esp",
+        .event_handler = _http_event_handler,
+        .user_data = local_response_buffer,        // Pass address of local buffer to get response
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_err_t err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        Serial.printf("HTTP GET Status = %d, content_length = %d\n", esp_http_client_get_status_code(client), esp_http_client_get_content_length(client));
+        Serial.printf("Response: %s\n", local_response_buffer);
+    } else {
+        Serial.printf("HTTP GET request failed: %d\n", err);
+    }
 }

@@ -7,12 +7,15 @@
 #include "utils/utils.h"
 #include <esp_wifi.h>
 #include "esp_http_client.h"
+// #include <HTTPClient.h>
 
 
 void init_wifi();
 
 uint32_t reconnect_wifi();
 uint8_t get_rssi_bars();
+
+void set_time();
 
 typedef struct {
     String ssid;

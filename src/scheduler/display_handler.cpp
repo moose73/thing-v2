@@ -3,6 +3,8 @@
 TFT_eSPI tft = TFT_eSPI();
 FT6236 ts = FT6236();
 
+TFT_eSprite img = TFT_eSprite(&tft);
+
 bool touched = false;
 void IRAM_ATTR ts_trigger() { touched = true; }
 
@@ -16,10 +18,11 @@ void draw_bitmap(char* bmp, int x, int y, int w, int h, uint16_t color) {
   for (int i = 0; i < w; i++) {
     for (int j = 0; j < h; j++) {
       if (bmp[i + j * w] == 1) {
-        tft.drawPixel(x + i, y + j, color);
+        img.drawPixel(x + i, y + j, color);
       }
     }
   }
+  img.pushSprite(0, 0);
 }
 
 void setup_display() {
@@ -27,6 +30,9 @@ void setup_display() {
   delay(2000);
   tft.fillScreen(TFT_WHITE);
   tft.setRotation(1);
+
+  img.createSprite(320, 240);
+  img.fillSprite(TFT_WHITE);
 
   ts.begin(20, -1, -1);
   pinMode(LCD_CTP_IRQ, INPUT);
@@ -48,16 +54,16 @@ uint32_t handle_touch(void) {
 }
 
 void displayFSMessage(String str, bool background=true, int delay_time=2000) {
-  if (background) {
-    tft.fillScreen(TFT_BLUE);
-  }
-  // tft.fillScreen(TFT_BLUE);
+
+  tft.setTextFont(2);
   tft.setTextSize(4);
   tft.setCursor(150, 20);
   tft.setTextColor(TFT_RED);
   tft.printf("%s", str); 
   delay(delay_time);
-  tft.fillScreen(TFT_WHITE);
+  if (background) {
+    tft.fillScreen(TFT_WHITE);
+  }
   tft.setTextColor(TFT_BLACK);
 }
 void setup_power_off_touch (bool shift, bool trig) {
@@ -65,16 +71,17 @@ void setup_power_off_touch (bool shift, bool trig) {
   if (shift) {
     ofs = 40;
   }
-  tft.fillRect(0, 200, 80, 40, TFT_WHITE);
+  img.fillRect(0, 200, 80, 40, TFT_WHITE);
   if (!trig) {
-    tft.fillRect(ofs, 200, 40, 40, TFT_LIGHTBLUE);
+    img.fillRect(ofs, 200, 40, 40, TFT_LIGHTBLUE);
   } else {
-    tft.fillRect(ofs, 200, 40, 40, TFT_PINK); 
+    img.fillRect(ofs, 200, 40, 40, TFT_PINK); 
   }
-  tft.setCursor(10 + ofs, 210);
-  tft.setTextFont(2);
-  tft.setTextSize(1);
-  tft.printf("OFF"); 
+  img.setCursor(10 + ofs, 210);
+  img.setTextFont(2);
+  img.setTextSize(1);
+  img.printf("OFF"); 
+  img.pushSprite(0, 0);
 }
 
 uint8_t power_off_seq_state = 0;
@@ -99,9 +106,13 @@ void check_power_off_touch(int x, int y) {
     setup_power_off_touch(false);
 
     #ifdef YANA
-    Serial.printf("starting yana image draw\n");
-    draw_yana_image(300 * 32000, 2);
-    displayFSMessage("bye :(", false, 5000);
+    int fptr_start = 300 * 32000;
+    for (int i = 0; i < 75; i++) {
+      fptr_start = draw_yana_image(fptr_start, 2);
+      // delay(15);
+    // draw_yana_image(300*32000, 2);
+      // displayFSMessage("bye :(", false, 33);
+    }
     #endif
     // displayFSMessage("bye :(");
 
@@ -138,13 +149,14 @@ void check_power_off_touch(int x, int y) {
 
 uint32_t update_battery_stats() {
   int font_size = 5;
-  tft.fillRect(0, 0, 320, 30, TFT_WHITE);
-  tft.setCursor(10, 10);
-  tft.setTextColor(TFT_BLACK);
-  tft.setTextSize(1);
-  tft.setTextFont(2);
-  tft.printf("%d%% | %dmV | %dmA", get_soc(), get_voltage(),
+  img.fillRect(0, 0, 320, 30, TFT_WHITE);
+  img.setCursor(10, 10);
+  img.setTextColor(TFT_BLACK);
+  img.setTextSize(1);
+  img.setTextFont(2);
+  img.printf("%d%% | %dmV | %dmA", get_soc(), get_voltage(),
              get_current());
+  img.pushSprite(0, 0);
   return 1000 * 1000;
 }
 
@@ -154,10 +166,10 @@ String prev_vspeed_string = "";
 uint32_t display_refresh_rate = 80 * 1000; 
 
 uint32_t update_altimeter_display() {
-  tft.drawFastHLine(0, 40, 320, TFT_BLACK);
-  tft.setTextDatum(TC_DATUM);
-  tft.setTextColor(TFT_BLACK);
-  tft.setTextSize(3);
+  img.drawFastHLine(0, 40, 320, TFT_BLACK);
+  img.setTextDatum(TC_DATUM);
+  img.setTextColor(TFT_BLACK);
+  img.setTextSize(3);
   
   uint32_t rec_time = micros();
   float alti = get_display_alti();
@@ -179,39 +191,39 @@ uint32_t update_altimeter_display() {
   vspeed = round((vspeed / 1.467) / 10) * 10;
   String vspeedString = String(int(vspeed));
 
-  if (altiString.equals(prev_alti_string) && vspeedString.equals(prev_vspeed_string)) {
-    return display_refresh_rate;
-  }
+  // if (altiString.equals(prev_alti_string) && vspeedString.equals(prev_vspeed_string)) {
+  //   return display_refresh_rate; 
+  // } //no need of this anymore, bless sprites :')
   prev_alti_string = altiString;
   prev_vspeed_string = vspeedString;
 
   State current_state = get_current_state();
 
   if (current_state == FLIGHT && alti > 4000) {
-    tft.fillRect(0, 41, 320, 78, TFT_GREENYELLOW);
+    img.fillRect(0, 41, 320, 78, TFT_GREENYELLOW);
   } else if (current_state == FREEFALL) {
     if (alti > 6000) {
-     tft.fillRect(0, 41, 320, 78, TFT_GREEN); 
+     img.fillRect(0, 41, 320, 78, TFT_GREEN); 
     } else if (alti > 4000) {
-      tft.fillRect(0, 41, 320, 78, TFT_YELLOW);
+      img.fillRect(0, 41, 320, 78, TFT_YELLOW);
     } else {
-      tft.fillRect(0, 41, 320, 78, TFT_RED);
+      img.fillRect(0, 41, 320, 78, TFT_RED);
     }
   } else {
-    tft.fillRect(0, 41, 320, 78, TFT_WHITE);
+    img.fillRect(0, 41, 320, 78, TFT_WHITE);
   }
 
-  // tft.fillRect(0, 41, 320, 78, TFT_WHITE);
+  // img.fillRect(0, 41, 320, 78, TFT_WHITE);
 
 
-  float width = (tft.drawString(altiString.substring(0, 6), 160, 50, 4));
-  tft.drawFastHLine(0, 120, 320, TFT_BLACK);
-  tft.setTextSize(1);
+  float width = (img.drawString(altiString.substring(0, 6), 160, 50, 4));
+  img.drawFastHLine(0, 120, 320, TFT_BLACK);
+  img.setTextSize(1);
 
-  tft.drawString(" ft", 180 + width/2, 85, 4); //4 is best sofar
+  img.drawString(" ft", 180 + width/2, 85, 4); //4 is best sofar
 
 
-  Serial.printf("State is %d\n", current_state);
+  // Serial.printf("State is %d\n", current_state);
   //show the PLANE_BMP bitmap on the right edge if in flight mode
   if (current_state == FLIGHT) {
    draw_bitmap((char*)plane_bmp, 290, 95, 20, 20, TFT_BLUE); 
@@ -219,33 +231,32 @@ uint32_t update_altimeter_display() {
     draw_bitmap((char*)freefall_bmp, 290, 85, 30, 30, TFT_BLUE);
   } else if (current_state == CANOPY) {
     draw_bitmap((char*)canopy_bmp, 290, 85, 30, 30, TFT_BLUE);
-  }  else {
-    Serial.printf("displaying nothing ???\n");
-  }
+  }  
 
-  tft.fillRect(0, 121, 160, 79, TFT_WHITE);
-  tft.setCursor(10, 130);
-  tft.setTextColor(TFT_BLACK);
-  tft.setTextSize(3);
+  img.fillRect(0, 121, 160, 79, TFT_WHITE);
+  img.setCursor(10, 130);
+  img.setTextColor(TFT_BLACK);
+  img.setTextSize(3);
 
-  tft.drawFastVLine(160, 121, 79, TFT_BLACK);
-  tft.drawFastHLine(0, 199, 320, TFT_BLACK);
+  img.drawFastVLine(160, 121, 79, TFT_BLACK);
+  img.drawFastHLine(0, 199, 320, TFT_BLACK);
 
   //format vspeed string. Convert to mph, round to nearest 10
 
-  width = tft.drawString(vspeedString.substring(0, 4), 80, 130, 4);
+  width = img.drawString(vspeedString.substring(0, 4), 80, 130, 4);
 
-  tft.setTextSize(1);
-  tft.setTextDatum(ML_DATUM);
-  tft.drawString(" mph", 28, 130, 2);
-  tft.drawLine(5, 125, 5, 136, TFT_BLACK);
+  img.setTextSize(1);
+  img.setTextDatum(ML_DATUM);
+  img.drawString(" mph", 28, 130, 2);
+  img.drawLine(5, 125, 5, 136, TFT_BLACK);
 
-  tft.drawLine(5, 125, 8, 128, TFT_BLACK);
-  tft.drawLine(5, 125, 2, 128, TFT_BLACK);
-  tft.drawLine(5, 136, 8, 133, TFT_BLACK);
-  tft.drawLine(5, 136, 2, 133, TFT_BLACK);
+  img.drawLine(5, 125, 8, 128, TFT_BLACK);
+  img.drawLine(5, 125, 2, 128, TFT_BLACK);
+  img.drawLine(5, 136, 8, 133, TFT_BLACK);
+  img.drawLine(5, 136, 2, 133, TFT_BLACK);
 
   draw_bitmap((char*)speedo_bmp, 10, 121, 20, 20, TFT_BLACK);
+  img.pushSprite(0, 0);
   return display_refresh_rate;
 }
 
@@ -263,7 +274,7 @@ uint32_t sleep_loop() {
     if (ctr > 30) {
       digitalWrite(LCD_BL_EN, HIGH);
       #ifdef YANA
-      draw_yana_image(400 * 32000);
+      draw_yana_image(480 * 32000);
       displayFSMessage("Hi!!", false, 5000);
       #else
       displayFSMessage("Hi!!");
@@ -282,32 +293,42 @@ void start_poweroff_sequence() {
 
 uint32_t update_wifi_rssi_bars() {
   //draw the rssi arcs on the top right of the screen
-  tft.drawRect(220, 0, 20, 20, TFT_WHITE);
+  img.drawRect(220, 0, 20, 20, TFT_WHITE);
   // uint8_t rssi = get_rssi_bars();
   // Serial.printf("RSSI is %d\n", rssi);
-
+  img.pushSprite(0, 0);
   return 3 * 1e6;
 }
 
-void draw_vline_bitmap(uint16_t* bmp, int w, int y, int upsample) {
+void draw_vline_bitmap(uint16_t* bmp, int w, int y, int upsample, bool push_sprite = true) {
   for (int y_d = y; y_d < y + upsample; y_d++) {
     for (int i = 0; i < w; i++) {
       for (int x_d = i * upsample; x_d < (i + 1) * upsample; x_d++) {
-        tft.drawPixel(x_d, y_d, bmp[i]);
+        img.drawPixel(x_d, y_d, bmp[i]);
       }
     }
   }
+  if (push_sprite) {
+    img.pushSprite(0, 0);
+  } 
 }
 
 int draw_yana_image(int flash_start, int upsample) {
-  uint16_t buf[int(320 / upsample)];
 
-  for (int y = 0; y < 240; y+=upsample) {
-    flash_read_bytes(flash_start, (uint8_t*)buf, int((2 * 320) / upsample));
-    draw_vline_bitmap(buf, int(320 / upsample), y, upsample);
-    flash_start += ((2*320) / upsample);
+  // int old_flash_start = flash_start;
 
+  int flash_par = 1;
+  uint16_t buf[int(320 / upsample) * flash_par];
+
+  for (int y = 0; y < 240; y+=(upsample * flash_par)) {
+    flash_read_bytes(flash_start, (uint8_t*)buf, int((2 * 320) / upsample) * flash_par);
+    for (int i = 0; i < flash_par; i++) {
+      draw_vline_bitmap(buf + (i * int(320 / upsample)), int(320 / upsample), y + (i * upsample), upsample, false);
+    }
+    // draw_vline_bitmap(buf, int(320 / upsample), y, upsample, false);
+    flash_start += ((2*320) / upsample) * flash_par;
   }
+  img.pushSprite(0, 0);
   return flash_start;
 
   

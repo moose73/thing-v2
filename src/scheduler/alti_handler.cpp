@@ -48,7 +48,7 @@ float last_vspeed = 0;
 
 int vspeed_ds_ctr = 0;
 float alti_old_vspeed = 0;
-int vspeed_ds_factor = 25;
+int vspeed_ds_factor = 35;
 
 int taskctr = 0;
 

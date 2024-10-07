@@ -8,8 +8,8 @@ float simulate_flight_alti() {
   float time = millis();
 
   float delay_time = 10e3 ;
-  float ascent_time = 30e3;
-  float peak_alti = 5000;
+  float ascent_time = 10e3;
+  float peak_alti = 8000;
   float descent_time = 20e3;
   float deploy_alti = 200;
   float canopy_time = 10e3;

@@ -14,7 +14,7 @@ void setup() {
 
     // delay(1000);
 
-    Serial.begin(115200);
+    Serial.begin(921600);
 
     init_scheduler();
 
@@ -25,7 +25,7 @@ void setup() {
     setup_display();
     init_flash(get_spi_bus());
 
-    init_wifi();
+    // init_wifi();
 
     #ifdef ERASE_FLASH
     while (!Serial);

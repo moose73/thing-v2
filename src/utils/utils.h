@@ -14,7 +14,7 @@ typedef enum  {
 #if defined(PIC1)
 #define START_MEDIA 300
 #elif defined(PIC2)
-#define START_MEDIA 400
+#define START_MEDIA 480
 #else
 #define START_MEDIA 500
 #endif

@@ -83,7 +83,7 @@ uint32_t write_flight_data(uint8_t *data, uint32_t len) {
         uint8_t buf[4];
         flash.readBytes(next_avlbl_sector * 4, buf, 4);
         if (buf[0] != 0xFF) {
-            Serial.printf("Error: flight %d is not available\n", next_avlbl_sector);
+            // Serial.printf("Error: flight %d is not available\n", next_avlbl_sector);
             return 0;
         }
         find_next_avlbl_sector();
@@ -184,7 +184,7 @@ void flash_process_altitude(float alti) {
 
 void erase_video_space() {
     // erase pages 300 to 500
-    for (int i = START_MEDIA; i < min(START_MEDIA+100, 500); i++) {
+    for (int i = START_MEDIA; i < min(START_MEDIA+180, 500); i++) {
         flash.blockErase32K(i * 32000);
     }
 }

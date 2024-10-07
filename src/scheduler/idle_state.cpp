@@ -54,7 +54,7 @@ uint32_t update_state_idle() {
     current_state = CANOPY;
   }
 
-  Serial.printf("vspeed now is %f, ftvsctzl %d, millis %d\n", get_vspeed_1(), first_time_vertical_speed_close_to_zero_low, millis());
+  // Serial.printf("vspeed now is %f, ftvsctzl %d, millis %d\n", get_vspeed_1(), first_time_vertical_speed_close_to_zero_low, millis());
   if (altitude < 1000 &&  abs(get_vspeed_1()) < 8) {
     if (first_time_vertical_speed_close_to_zero_low == 0) {
       first_time_vertical_speed_close_to_zero_low = millis();
@@ -69,7 +69,7 @@ uint32_t update_state_idle() {
     first_time_vertical_speed_close_to_zero_low = 0;
   }
 
-  Serial.printf("Current state is %d, alti is %f, max alti is %f\n", current_state, altitude, flight_max_alti);
+  // Serial.printf("Current state is %d, alti is %f, max alti is %f\n", current_state, altitude, flight_max_alti);
 
 
   // if (altitude > 500 && (first_time_above_500ft > 0) &&
